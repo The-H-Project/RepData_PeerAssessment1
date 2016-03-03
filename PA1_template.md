@@ -1,0 +1,35 @@
+# Reproducible Research: Peer Assessment 1
+
+## Loading and preprocessing the data
+This assignment was prepared using:  
+* R version 3.2.3  
+* data.table version 1.9.6
+
+Use data.table to load the activity.csv dataset and:  
+1. pad the interval data with zeroes we can convert it to time data (**Interval_f** = formatted interval)  
+2. convert the date column to **date** data  
+3. create a continuous date/time series with the date and time data (**Interval_dt**)  
+
+
+
+```r
+library(data.table)
+dataset <- data.table(fread('activity.csv', na.strings='NA'))
+dataset[,Interval_f := sprintf("%04d", as.numeric(interval))]
+dataset[,date := as.Date(date, format='%Y-%m-%d')] 
+dataset[,Interval_dt := as.POSIXct(paste(date,Interval_f), format='%Y-%m-%d %H%M')]
+```
+
+## What is mean total number of steps taken per day?
+
+
+
+## What is the average daily activity pattern?
+
+
+
+## Imputing missing values
+
+
+
+## Are there differences in activity patterns between weekdays and weekends?
