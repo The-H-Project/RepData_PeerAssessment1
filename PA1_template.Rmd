@@ -59,13 +59,26 @@ whichinterval <- averageset[which.max(AverageSteps),Interval_f]
 
 The 5-minute interval that on average contains the maximum number of steps: **`r whichinterval`**
 
-## Imputing missing values
+## Imputing Missing Values
+
+#### Missing Values in Dataset
+We may determine the total number of missing values by counting the number of rows in the 'totalset' table that sum to NA for total number of steps.
+
+```{r}
+# Figure out and report the total number of rows with NAs. 
+naset <- totalset[is.na(TotalSteps==TRUE)]
+
+# Figure out the day number of each date, for later.
+naset[,day := as.factor(format.Date(date, format='%w'))]
+```
+
+The number of dates missing values is (/ are): **`r naset[,.N]`**
+
+#### Calculating Average Values 
+
+We're going to impute missing data values by calculating the average number of steps per interval per day number (0 to 6). However, we're going to round the average steps to the nearest whole digit, because people don't take fractional steps.
 
 data.table is used to cast (widen and shorten) the data table by forcing each date to its own row, and the intervals to columns. (This is equivalent to creating a pivot table in Microsoft Excel, using Date as Row value Interval_f as the Column value, and steps as the data)
-
-From this table (datawide), we are able to determine that there are 
-
-We're going to impute missing data values by figuring out the average steps per interval per day. 
 
 ```{r}
 datawide <- dcast.data.table(dataset, date ~ Interval_f, value.var = 'steps')
@@ -73,9 +86,24 @@ datawide <- dcast.data.table(dataset, date ~ Interval_f, value.var = 'steps')
 # Figure out the weekday number of each date.
 datawide[,day := as.factor(format.Date(date, format='%w'))]
 
-# Figure out the average values per interval on each given day. Remove the date column from this table because it's not an averaged value. We're going to use this data to replace missing values based on weekday value.
+# Figure out the average values per interval on each given day, but round to the nearest digit because people don't take fractional steps. This will obviously skew the median and average steps.
+#
+# While averaging and rounding works should work as a chain, i.e.:
+#
+# dayaverages <- datawide[, lapply(.SD, mean, na.rm=TRUE), by=day][, lapply (.SD, round), .SDcols=2:ncol(dayaverages)]
+#
+# it does not seem to work with Knitr
+
+# Determine the average number of steps per interval by day.
 dayaverages <- datawide[, lapply(.SD, mean, na.rm=TRUE), by=day]
+
+# Remove the date column from this table because it's not an averaged value.
 dayaverages[,date := NULL]
+
+# Round the number of steps to the nearest whole digit, because people don't take fractional steps. The first column is day, so it won't be averaged, but we still need it as an identifier column.
+dayaverages <- cbind(dayaverages$day, dayaverages[, lapply (.SD, round), .SDcols=2:ncol(dayaverages)])
+names(dayaverages)[1] <- 'day'
+
 
 ```
 
