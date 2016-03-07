@@ -22,7 +22,7 @@ dataset[,Interval_dt := as.POSIXct(paste(date,Interval_f), format='%Y-%m-%d %H%M
 
 ## What is mean total number of steps taken per day?
 
-data.table is used to create summary table 'totalset' that contains the total number steps per day. The 'totalset' table is then plotted using the hist function.
+data.table is used to create summary table 'totalset' that contains the total number steps per date. The 'totalset' table is then plotted using the hist function.
 
 
 ```r
@@ -37,13 +37,13 @@ hist(totalset$TotalSteps, main='Number of Steps Taken Per Day', xlab='Steps Take
 
 ![](PA1_template_files/figure-html/unnamed-chunk-2-1.png) 
 
-The mean number of steps taken per day is: 10,766.19
+The mean number of steps taken per day is: **10,766.19**
 
-The median number of steps taken per day is: 10,765
+The median number of steps taken per day is: **10,765**
 
 ## What is the average daily activity pattern?
 
-data.table is used to create summary table 'averageset', which contains the average number of steps per time interval across all days. The 'averageset' table is then plotted in time series plot.
+data.table is used to create summary table 'averageset', which contains the average number of steps per time interval per day number. The 'averageset' table is then plotted in time series plot.
 
 Also, determine the interval that had the highest average number of steps.
 
@@ -77,14 +77,17 @@ naset <- totalset[is.na(TotalSteps==TRUE)]
 naset[,day := as.factor(format.Date(date, format='%w'))]
 ```
 
-The number of dates missing values is (/ are): **8**
-
+The number of dates missing values is: **8**
 
 #### Calculating Average Values 
 
 We're going to impute missing data values by calculating the average number of steps per interval per day number (0 to 6). However, we're going to round the average steps to the nearest whole digit, because people don't take fractional steps.
 
-data.table is used to cast (widen and shorten) the data table by forcing each date to its own row, and the intervals to columns. (This is equivalent to creating a pivot table in Microsoft Excel, using Date as Row value Interval_f as the Column value, and steps as the data)
+This conceptually takes four steps:  
+1. We calculate the average values per interval for each day number. data.table is used to cast (widen and shorten) the data table by forcing each date to its own row, and the intervals to columns. This is equivalent to creating a pivot table in Microsoft Excel, using Date as Row value Interval_f as the Column value, and steps as the data.  
+2. We get the dates that are missing data, and calculate their day numbers.  
+3. We merge the two tables to create an ImputedValues dataset.  
+4. We merge the ImputedValues dataset with the main dataset.  
 
 
 ```r
@@ -93,15 +96,15 @@ datawide <- dcast.data.table(dataset, date ~ Interval_f, value.var = 'steps')
 # Figure out the weekday number of each date.
 datawide[,day := as.factor(format.Date(date, format='%w'))]
 
-# Figure out the average values per interval on each given day, but round to the nearest digit because people don't take fractional steps. This will obviously skew the median and average steps.
+# Figure out the average values per interval on each given day number, but round to the nearest digit because people don't take fractional steps. This will obviously skew the median and average steps.
 #
 # While averaging and rounding works should work as a chain, i.e.:
 #
 # dayaverages <- datawide[, lapply(.SD, mean, na.rm=TRUE), by=day][, lapply (.SD, round), .SDcols=2:ncol(dayaverages)]
 #
-# it does not seem to work with Knitr
+# it does not seem to work with Knitr, so the steps are separated below
 
-# Determine the average number of steps per interval by day.
+# Determine the average number of steps per interval by day number.
 dayaverages <- datawide[, lapply(.SD, mean, na.rm=TRUE), by=day]
 
 # Remove the date column from this table because it's not an averaged value.
@@ -110,6 +113,56 @@ dayaverages[,date := NULL]
 # Round the number of steps to the nearest whole digit, because people don't take fractional steps. The first column is day, so it won't be averaged, but we still need it as an identifier column.
 dayaverages <- cbind(dayaverages$day, dayaverages[, lapply (.SD, round), .SDcols=2:ncol(dayaverages)])
 names(dayaverages)[1] <- 'day'
+
+# Set the common key on tables in preparation for merge the two datasets
+setkey(dayaverages,day)
+setkey(naset, day)
+
+# Create of table of imputed values for missing days in the datawide table.
+# naset contains the dates for which we are missing values
+# dayaverages contains the imputed interval values for each day number
+ImputedValues <- merge(naset, dayaverages, all.x=TRUE)
+
+# Set the common key on ImputedValues and datawide to date
+setkey(ImputedValues, date)
+setkey(datawide, date)
+
+# Create the final dataset of all dates including those with imputed values. There is no easy way using R data tables to do a
+# SQL UPDATE datawide JOIN ImputedValues ON datawide.date = datawide.date SET
+# statement
+# Merge the totalset (number of total steps per date) with datawide 
+# Get rid of rows where there are no steps, and combine the imputed values with the
+# original dataset
+# Index on the date, which will also sort the data by date ascending
+ImputedDatawide <- datawide[totalset, on='date']
+ImputedDatawide <- ImputedDatawide[!is.na(TotalSteps)]
+ImputedDatawide <- rbind(ImputedDatawide, ImputedValues)
+setkey(ImputedDatawide, date)
+
+# Get rid of TotalSteps so we can recalculate it
+# Get rid of day because it gets in the way of TotalSteps being recalculated (specifically, the .SDCols parameter)
+ImputedDatawide[,TotalSteps := NULL]
+ImputedDatawide[,day := NULL]
+
+# Recalculate total steps per day
+ImputedDatawide[ ,TotalSteps := rowSums(.SD), .SDcols = 2:ncol(ImputedDatawide)]
+
+# Recalculate median and mean steps
+Imputedmediansteps <- median(ImputedDatawide$TotalSteps)
+Imputedmeansteps <- mean(ImputedDatawide$TotalSteps)
+
+# Create the histogram
+hist(ImputedDatawide$TotalSteps, main='Number of Steps Taken Per Day', xlab='Steps Taken Per Day', ylab='Number of Days (Frequency)', breaks=length(unique(ImputedDatawide$TotalSteps)))
+mtext('(with imputed values for NA data)', side=3) 
 ```
 
+![](PA1_template_files/figure-html/unnamed-chunk-5-1.png) 
+
+The mean number of steps taken per day is: **10,821.1**
+
+The median number of steps taken per day is: **11,015**
+
+The method used to impute missing data raised both the mean and median of the dataset. A different method of imputing data would have a different effect. For example, imputing missing data using mean values without rounding would keep the mean of the revised dataset, but change its variances.
+
 ## Are there differences in activity patterns between weekdays and weekends?
+
