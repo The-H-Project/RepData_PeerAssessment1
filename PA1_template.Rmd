@@ -16,7 +16,7 @@ data.table is used to load the activity.csv dataset and:
 3. create a continuous date/time series with the date and time data (**Interval_dt**)  
 
 
-```{r}
+```{r load_and_preprocess}
 library(data.table)
 dataset <- data.table(fread('activity.csv', na.strings='NA'))
 dataset[,Interval_f := sprintf("%04d", as.numeric(interval))]
@@ -28,7 +28,7 @@ dataset[,Interval_dt := as.POSIXct(paste(date,Interval_f), format='%Y-%m-%d %H%M
 
 data.table is used to create summary table 'totalset' that contains the total number steps per date. The 'totalset' table is then plotted using the hist function.
 
-```{r}
+```{r mean_steps_per_day}
 totalset <- dataset[,sum(steps), by=date]
 names(totalset)[2] <- 'TotalSteps'
 mediansteps <- median(totalset$TotalSteps, na.rm = TRUE)
@@ -47,7 +47,7 @@ The median number of steps taken per day is: **`r prettyNum(mediansteps, big.mar
 data.table is used to create summary table 'averageset', which contains the average number of steps per time interval per day number. The 'averageset' table is then plotted in time series plot.
 
 Also, determine the interval that had the highest average number of steps.
-```{r}
+```{r average_daily_activity_pattern}
 averageset <- dataset[,mean(steps, na.rm = TRUE), by=Interval_f]
 names(averageset)[2] <- 'AverageSteps'
 
@@ -64,7 +64,7 @@ The 5-minute interval that on average contains the maximum number of steps: **`r
 #### Missing Values in Dataset
 We may determine the total number of missing values by counting the number of rows in the 'totalset' table that sum to NA for total number of steps.
 
-```{r}
+```{r number_of_missing_values}
 # Figure out and report the total number of rows with NAs. 
 naset <- totalset[is.na(TotalSteps==TRUE)]
 
@@ -84,7 +84,7 @@ This conceptually takes four steps:
 3. We merge the two tables to create an ImputedValues dataset.  
 4. We merge the ImputedValues dataset with the main dataset.  
 
-```{r}
+```{r impute_missing_values}
 datawide <- dcast.data.table(dataset, date ~ Interval_f, value.var = 'steps')
 
 # Figure out the weekday number of each date.
@@ -121,11 +121,12 @@ ImputedValues <- merge(naset, dayaverages, all.x=TRUE)
 setkey(ImputedValues, date)
 setkey(datawide, date)
 
-# Create the final dataset of all dates including those with imputed values. There is no easy way using R data tables to do a
-# SQL UPDATE datawide JOIN ImputedValues ON datawide.date = datawide.date SET
-# statement
-# Merge the totalset (number of total steps per date) with datawide 
-# Get rid of rows where there are no steps, and combine the imputed values with the
+# Create the final dataset of all dates including those with imputed values. While the R data.table package is pretty strong with column manipulation, it is less so with row manipulation. There is no easy way to update rows. So we're going to do a SQL UPDATE in two steps:
+# * getting rid of rows where there are dates with no steps
+# * combine the original dataset with the imputed values
+#
+# 1. Merge the totalset (number of total steps per date) with datawide  
+# 2. Get rid of rows where there are no steps, and combine the imputed values with the
 # original dataset
 # Index on the date, which will also sort the data by date ascending
 ImputedDatawide <- datawide[totalset, on='date']
@@ -159,3 +160,20 @@ The method used to impute missing data raised both the mean and median of the da
 
 ## Are there differences in activity patterns between weekdays and weekends?
 
+### Create Weekday Versus WeekEnd factor variable
+```{r Weekdays_vs_Weekends}
+# Determine the average number of steps per interval by day number.
+# Imputedayaverages <- ImputedDatawide[, lapply(.SD, mean, na.rm=TRUE), by=day]
+
+# Recalculate the day number of each date, 0 to 6. 0 is Sunday, 6 is Saturday.
+ImputedDatawide[,day := format.Date(date, format='%w')]
+
+# Assign Weekday / Weekend to Imputed dataset, and covert to factor
+ImputedDatawide[day %in% c(1:5), WeekDayOrEnd := 1]  
+ImputedDatawide[day %in% c(0,6), WeekDayOrEnd := 2]  
+ImputedDatawide$WeekDayOrEnd <- as.factor(ImputedDatawide$WeekDayOrEnd)
+
+# Average 
+ImputedWeekDayOrEndAverages <- ImputedDatawide[, lapply(.SD, mean, .SDcols=2:(ncol(ImputedDatawide)-3)), by=WeekDayOrEnd]
+
+```

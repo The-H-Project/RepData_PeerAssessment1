@@ -35,7 +35,7 @@ hist(totalset$TotalSteps, main='Number of Steps Taken Per Day', xlab='Steps Take
      ylab='Number of Days (Frequency)', breaks=length(unique(totalset$TotalSteps)))  
 ```
 
-![](PA1_template_files/figure-html/unnamed-chunk-2-1.png) 
+![](PA1_template_files/figure-html/mean_steps_per_day-1.png) 
 
 The mean number of steps taken per day is: **10,766.19**
 
@@ -55,7 +55,7 @@ plot(x=averageset$Interval_f,y = averageset$AverageSteps, main='Average Daily Pa
      xlab = 'Time', ylab='Average Number of Steps', type='l')
 ```
 
-![](PA1_template_files/figure-html/unnamed-chunk-3-1.png) 
+![](PA1_template_files/figure-html/average_daily_activity_pattern-1.png) 
 
 ```r
 whichinterval <- averageset[which.max(AverageSteps),Interval_f]
@@ -127,11 +127,12 @@ ImputedValues <- merge(naset, dayaverages, all.x=TRUE)
 setkey(ImputedValues, date)
 setkey(datawide, date)
 
-# Create the final dataset of all dates including those with imputed values. There is no easy way using R data tables to do a
-# SQL UPDATE datawide JOIN ImputedValues ON datawide.date = datawide.date SET
-# statement
-# Merge the totalset (number of total steps per date) with datawide 
-# Get rid of rows where there are no steps, and combine the imputed values with the
+# Create the final dataset of all dates including those with imputed values. While the R data.table package is pretty strong with column manipulation, it is less so with row manipulation. There is no easy way to update rows. So we're going to do a SQL UPDATE in two steps:
+# * getting rid of rows where there are dates with no steps
+# * combine the original dataset with the imputed values
+#
+# 1. Merge the totalset (number of total steps per date) with datawide  
+# 2. Get rid of rows where there are no steps, and combine the imputed values with the
 # original dataset
 # Index on the date, which will also sort the data by date ascending
 ImputedDatawide <- datawide[totalset, on='date']
@@ -156,7 +157,7 @@ hist(ImputedDatawide$TotalSteps, main='Number of Steps Taken Per Day', xlab='Ste
 mtext('(with imputed values for NA data)', side=3) 
 ```
 
-![](PA1_template_files/figure-html/unnamed-chunk-5-1.png) 
+![](PA1_template_files/figure-html/impute_missing_values-1.png) 
 
 The mean number of steps taken per day is: **10,821.1**
 
@@ -166,3 +167,48 @@ The method used to impute missing data raised both the mean and median of the da
 
 ## Are there differences in activity patterns between weekdays and weekends?
 
+### Create Weekday Versus WeekEnd factor variable
+
+```r
+# Determine the average number of steps per interval by day number.
+# Imputedayaverages <- ImputedDatawide[, lapply(.SD, mean, na.rm=TRUE), by=day]
+
+# Recalculate the day number of each date, 0 to 6. 0 is Sunday, 6 is Saturday.
+ImputedDatawide[,day := format.Date(date, format='%w')]
+
+# Assign Weekday / Weekend to Imputed dataset, and covert to factor
+ImputedDatawide[day %in% c(1:5), WeekDayOrEnd := 1]  
+ImputedDatawide[day %in% c(0,6), WeekDayOrEnd := 2]  
+ImputedDatawide$WeekDayOrEnd <- as.factor(ImputedDatawide$WeekDayOrEnd)
+
+# Average 
+ImputedWeekDayOrEndAverages <- ImputedDatawide[, lapply(.SD, mean, .SDcols=2:(ncol(ImputedDatawide)-3)), by=WeekDayOrEnd]
+```
+
+```
+## Warning in `[.data.table`(ImputedDatawide, , lapply(.SD, mean, .SDcols = 2:
+## (ncol(ImputedDatawide) - : Unable to optimize call to mean() and could be
+## very slow. You must name 'na.rm' like that otherwise if you do mean(x,TRUE)
+## the TRUE is taken to mean 'trim' which is the 2nd argument of mean. 'trim'
+## is not yet optimized.
+```
+
+```
+## Warning in mean(date, .SDcols = 2:(ncol(ImputedDatawide) - 3)): argument is
+## not numeric or logical: returning NA
+```
+
+```
+## Warning in mean(day, .SDcols = 2:(ncol(ImputedDatawide) - 3)): argument is
+## not numeric or logical: returning NA
+```
+
+```
+## Warning in mean(date, .SDcols = 2:(ncol(ImputedDatawide) - 3)): argument is
+## not numeric or logical: returning NA
+```
+
+```
+## Warning in mean(day, .SDcols = 2:(ncol(ImputedDatawide) - 3)): argument is
+## not numeric or logical: returning NA
+```

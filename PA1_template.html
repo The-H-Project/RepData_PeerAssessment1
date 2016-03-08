@@ -210,11 +210,12 @@ ImputedValues &lt;- merge(naset, dayaverages, all.x=TRUE)
 setkey(ImputedValues, date)
 setkey(datawide, date)
 
-# Create the final dataset of all dates including those with imputed values. There is no easy way using R data tables to do a
-# SQL UPDATE datawide JOIN ImputedValues ON datawide.date = datawide.date SET
-# statement
-# Merge the totalset (number of total steps per date) with datawide 
-# Get rid of rows where there are no steps, and combine the imputed values with the
+# Create the final dataset of all dates including those with imputed values. While the R data.table package is pretty strong with column manipulation, it is less so with row manipulation. There is no easy way to update rows. So we're going to do a SQL UPDATE in two steps:
+# * getting rid of rows where there are dates with no steps
+# * combine the original dataset with the imputed values
+#
+# 1. Merge the totalset (number of total steps per date) with datawide  
+# 2. Get rid of rows where there are no steps, and combine the imputed values with the
 # original dataset
 # Index on the date, which will also sort the data by date ascending
 ImputedDatawide &lt;- datawide[totalset, on='date']
@@ -245,6 +246,35 @@ mtext('(with imputed values for NA data)', side=3) </code></pre>
 </div>
 <div id="are-there-differences-in-activity-patterns-between-weekdays-and-weekends" class="section level2">
 <h2>Are there differences in activity patterns between weekdays and weekends?</h2>
+<div id="create-weekday-versus-weekend-factor-variable" class="section level3">
+<h3>Create Weekday Versus WeekEnd factor variable</h3>
+<pre class="r"><code># Determine the average number of steps per interval by day number.
+# Imputedayaverages &lt;- ImputedDatawide[, lapply(.SD, mean, na.rm=TRUE), by=day]
+
+# Recalculate the day number of each date, 0 to 6. 0 is Sunday, 6 is Saturday.
+ImputedDatawide[,day := format.Date(date, format='%w')]
+
+# Assign Weekday / Weekend to Imputed dataset, and covert to factor
+ImputedDatawide[day %in% c(1:5), WeekDayOrEnd := 1]  
+ImputedDatawide[day %in% c(0,6), WeekDayOrEnd := 2]  
+ImputedDatawide$WeekDayOrEnd &lt;- as.factor(ImputedDatawide$WeekDayOrEnd)
+
+# Average 
+ImputedWeekDayOrEndAverages &lt;- ImputedDatawide[, lapply(.SD, mean, .SDcols=2:(ncol(ImputedDatawide)-3)), by=WeekDayOrEnd]</code></pre>
+<pre><code>## Warning in `[.data.table`(ImputedDatawide, , lapply(.SD, mean, .SDcols = 2:
+## (ncol(ImputedDatawide) - : Unable to optimize call to mean() and could be
+## very slow. You must name 'na.rm' like that otherwise if you do mean(x,TRUE)
+## the TRUE is taken to mean 'trim' which is the 2nd argument of mean. 'trim'
+## is not yet optimized.</code></pre>
+<pre><code>## Warning in mean(date, .SDcols = 2:(ncol(ImputedDatawide) - 3)): argument is
+## not numeric or logical: returning NA</code></pre>
+<pre><code>## Warning in mean(day, .SDcols = 2:(ncol(ImputedDatawide) - 3)): argument is
+## not numeric or logical: returning NA</code></pre>
+<pre><code>## Warning in mean(date, .SDcols = 2:(ncol(ImputedDatawide) - 3)): argument is
+## not numeric or logical: returning NA</code></pre>
+<pre><code>## Warning in mean(day, .SDcols = 2:(ncol(ImputedDatawide) - 3)): argument is
+## not numeric or logical: returning NA</code></pre>
+</div>
 </div>
 
 
