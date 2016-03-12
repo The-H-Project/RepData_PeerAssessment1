@@ -140,10 +140,8 @@ ImputedDatawide <- ImputedDatawide[!is.na(TotalSteps)]
 ImputedDatawide <- rbind(ImputedDatawide, ImputedValues)
 setkey(ImputedDatawide, date)
 
-# Get rid of TotalSteps so we can recalculate it
-# Get rid of day because it gets in the way of TotalSteps being recalculated (specifically, the .SDCols parameter)
-ImputedDatawide[,TotalSteps := NULL]
-ImputedDatawide[,day := NULL]
+# Get rid of TotalSteps so we can recalculate it, and get rid of day because it gets in the way of TotalSteps being recalculated (specifically, the .SDCols parameter)
+ImputedDatawide[, `:=` (TotalSteps = NULL, day = NULL)]
 
 # Recalculate total steps per day
 ImputedDatawide[ ,TotalSteps := rowSums(.SD), .SDcols = 2:ncol(ImputedDatawide)]
@@ -167,48 +165,24 @@ The method used to impute missing data raised both the mean and median of the da
 
 ## Are there differences in activity patterns between weekdays and weekends?
 
-### Create Weekday Versus WeekEnd factor variable
+The weekday vs weekend factor variable is somewhat of an extraneous layer because:  
+- We have to calculate days anyway.  
+- We have to do extra work to assign turn date information into weekday / weekend, because R factor levels (weekday / weekend) may not be assigned to multiple values (1 to 5, and 0 and 6, respectively).
+
+We're avoiding the weekdays function mentioned in the course assignment because it returns character string, but it's easier to use numbers to classify weekdays / weekends. The averages for weekday and weekend are calculated separately, and then stacked together for the graph.
+
 
 ```r
 # Determine the average number of steps per interval by day number.
-# Imputedayaverages <- ImputedDatawide[, lapply(.SD, mean, na.rm=TRUE), by=day]
-
 # Recalculate the day number of each date, 0 to 6. 0 is Sunday, 6 is Saturday.
 ImputedDatawide[,day := format.Date(date, format='%w')]
 
-# Assign Weekday / Weekend to Imputed dataset, and covert to factor
-ImputedDatawide[day %in% c(1:5), WeekDayOrEnd := 1]  
-ImputedDatawide[day %in% c(0,6), WeekDayOrEnd := 2]  
+# Assign Weekday / Weekend to Imputed dataset, and get rid of the Date and Day variables, because they can't be averaged.
+ImputedDatawide[day %in% c(1:5), WeekDayOrEnd := 'Weekday']
+ImputedDatawide[day %in% c(0,6), WeekDayOrEnd := 'Weekend']
+ImputedDatawide[, `:=` (day = NULL, date = NULL)]
 ImputedDatawide$WeekDayOrEnd <- as.factor(ImputedDatawide$WeekDayOrEnd)
 
 # Average 
-ImputedWeekDayOrEndAverages <- ImputedDatawide[, lapply(.SD, mean, .SDcols=2:(ncol(ImputedDatawide)-3)), by=WeekDayOrEnd]
-```
-
-```
-## Warning in `[.data.table`(ImputedDatawide, , lapply(.SD, mean, .SDcols = 2:
-## (ncol(ImputedDatawide) - : Unable to optimize call to mean() and could be
-## very slow. You must name 'na.rm' like that otherwise if you do mean(x,TRUE)
-## the TRUE is taken to mean 'trim' which is the 2nd argument of mean. 'trim'
-## is not yet optimized.
-```
-
-```
-## Warning in mean(date, .SDcols = 2:(ncol(ImputedDatawide) - 3)): argument is
-## not numeric or logical: returning NA
-```
-
-```
-## Warning in mean(day, .SDcols = 2:(ncol(ImputedDatawide) - 3)): argument is
-## not numeric or logical: returning NA
-```
-
-```
-## Warning in mean(date, .SDcols = 2:(ncol(ImputedDatawide) - 3)): argument is
-## not numeric or logical: returning NA
-```
-
-```
-## Warning in mean(day, .SDcols = 2:(ncol(ImputedDatawide) - 3)): argument is
-## not numeric or logical: returning NA
+ImputedAverages <- ImputedDatawide[, lapply(.SD, mean), by=WeekDayOrEnd]
 ```
