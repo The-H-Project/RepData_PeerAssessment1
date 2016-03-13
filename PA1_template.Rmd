@@ -18,6 +18,7 @@ data.table is used to load the activity.csv dataset and:
 
 ```{r load_and_preprocess}
 library(data.table)
+library(lattice)
 dataset <- data.table(fread('activity.csv', na.strings='NA'))
 dataset[,Interval_f := sprintf("%04d", as.numeric(interval))]
 dataset[,date := as.Date(date, format='%Y-%m-%d')] 
@@ -44,17 +45,17 @@ The median number of steps taken per day is: **`r prettyNum(mediansteps, big.mar
 
 ## What is the average daily activity pattern?
 
-data.table is used to create summary table 'averageset', which contains the average number of steps per time interval per day number. The 'averageset' table is then plotted in time series plot.
+data.table is used to create summary table 'averageset', which contains the average number of steps per time interval for each day (day number). The 'averageset' table is then plotted in a time series plot.
 
 Also, determine the interval that had the highest average number of steps.
 ```{r average_daily_activity_pattern}
 averageset <- dataset[,mean(steps, na.rm = TRUE), by=Interval_f]
 names(averageset)[2] <- 'AverageSteps'
 
+whichinterval <- averageset[which.max(AverageSteps),Interval_f]
+
 plot(x=averageset$Interval_f,y = averageset$AverageSteps, main='Average Daily Pattern',
      xlab = 'Time', ylab='Average Number of Steps', type='l')
-
-whichinterval <- averageset[which.max(AverageSteps),Interval_f]
 ```
 
 The 5-minute interval that on average contains the maximum number of steps: **`r whichinterval`**
@@ -158,24 +159,26 @@ The method used to impute missing data raised both the mean and median of the da
 
 ## Are there differences in activity patterns between weekdays and weekends?
 
-The weekday vs weekend factor variable is somewhat of an extraneous layer because:  
-- We have to calculate days anyway.  
-- We have to do extra work to assign turn date information into weekday / weekend, because R factor levels (weekday / weekend) may not be assigned to multiple values (1 to 5, and 0 and 6, respectively).
-
-We're avoiding the weekdays function mentioned in the course assignment because it returns character string, but it's easier to use numbers to classify weekdays / weekends. The averages for weekday and weekend are calculated separately, and then stacked together for the graph.
+We're going to graph weekday vs weekend activity to show their differences. We must first determine which dates in the dataset are weekdays, and which are weekends. We're avoiding the weekdays function mentioned in the course assignment because it returns character string, but it's easier to use numbers to classify weekdays / weekends.
 
 ```{r Weekdays_vs_Weekends}
 # Determine the average number of steps per interval by day number.
 # Recalculate the day number of each date, 0 to 6. 0 is Sunday, 6 is Saturday.
 ImputedDatawide[,day := format.Date(date, format='%w')]
 
-# Assign Weekday / Weekend to Imputed dataset, and get rid of the Date and Day variables, because they can't be averaged.
+# Assign Weekday / Weekend to Imputed dataset, and get rid of the Date, Day, and TotalSteps variables, because these variables shouldn't be averaged.
 ImputedDatawide[day %in% c(1:5), WeekDayOrEnd := 'Weekday']
 ImputedDatawide[day %in% c(0,6), WeekDayOrEnd := 'Weekend']
-ImputedDatawide[, `:=` (day = NULL, date = NULL)]
+ImputedDatawide[, `:=` (day = NULL, date = NULL, TotalSteps = NULL)]
 ImputedDatawide$WeekDayOrEnd <- as.factor(ImputedDatawide$WeekDayOrEnd)
 
-# Average 
+# Average the imputed data grouped by Weekday and Weekend
 ImputedAverages <- ImputedDatawide[, lapply(.SD, mean), by=WeekDayOrEnd]
+
+# Melt the data so it may be graphed.
+ImputedLong <- melt(ImputedAverages, id.vars = 'WeekDayOrEnd', variable.name = 'Interval', value.name = 'AverageSteps')
+
+# Use a lattice panel plot to graph averages steps for Weekends and Weekdays.
+xyplot(AverageSteps ~ Interval | factor(WeekDayOrEnd), data=ImputedLong, groups=WeekDayOrEnd, type='l', layout=c(1,2))
 
 ```
