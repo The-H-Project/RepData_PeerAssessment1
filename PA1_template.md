@@ -1,15 +1,15 @@
 # Reproducible Research: Peer Assessment 1
 
-## Loading and preprocessing the data
-This assignment was prepared using:  
+This assignment was prepared using:   
 * R version 3.2.3  
 * data.table version 1.9.6
 
-data.table is used to load the activity.csv dataset and:  
-1. pad the interval data with zeroes we can convert it to time data (**Interval_f** = formatted interval)  
-2. convert the date column to **date** data  
-3. create a continuous date/time series with the date and time data (**Interval_dt**)  
+## Loading and preprocessing the data
 
+1. Load required packages and the dataset.
+2. pad the interval data with zeroes we can convert it to time data (**Interval_f** = formatted interval)  
+3. convert the date column to **date** data  
+4. create a continuous date/time series with the date and time data (**Interval_dt**)  
 
 
 ```r
@@ -70,6 +70,7 @@ We may determine the total number of missing values by counting the number of ro
 
 ```r
 # Figure out and report the total number of rows with NAs. 
+nadataset <- is.na(dataset)
 naset <- totalset[is.na(TotalSteps==TRUE)]
 
 # Figure out the day number of each date, for later.
@@ -78,9 +79,11 @@ naset[,day := as.factor(format.Date(date, format='%w'))]
 
 The number of dates missing values is: **8**
 
+The total number of missing data points is: **2,304**
+
 #### Calculating Average Values 
 
-We're going to impute missing data values by calculating the average number of steps per interval per day number (0 to 6). However, we're going to round the average steps to the nearest whole digit, because people don't take fractional steps.
+We're going to impute missing data values by calculating the average number of steps for each interval, for each day number (0 to 6): for example, the average number of steps for interval 0835 for all Mondays. However, we're going to round the average steps to the nearest whole digit, because people don't take fractional steps.
 
 This conceptually takes four steps:  
 1. We calculate the average values per interval for each day number. data.table is used to cast (widen and shorten) the data table by forcing each date to its own row, and the intervals to columns. This is equivalent to creating a pivot table in Microsoft Excel, using Date as Row value Interval_f as the Column value, and steps as the data.  
