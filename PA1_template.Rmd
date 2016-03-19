@@ -29,7 +29,7 @@ dataset[,Interval_dt := as.POSIXct(paste(date,Interval_f), format='%Y-%m-%d %H%M
 
 data.table is used to create summary table 'totalset' that contains the total number steps per date. The 'totalset' table is then plotted using the hist function.
 
-```{r mean_steps_per_day}
+```{r mean_steps_per_day, echo=TRUE}
 totalset <- dataset[,sum(steps), by=date]
 names(totalset)[2] <- 'TotalSteps'
 mediansteps <- median(totalset$TotalSteps, na.rm = TRUE)
@@ -48,7 +48,7 @@ The median number of steps taken per day is: **`r prettyNum(mediansteps, big.mar
 data.table is used to create summary table 'averageset', which contains the average number of steps per time interval for each day (day number). The 'averageset' table is then plotted in a time series plot.
 
 Also, determine the interval that had the highest average number of steps.
-```{r average_daily_activity_pattern}
+```{r average_daily_activity_pattern, echo=TRUE}
 averageset <- dataset[,mean(steps, na.rm = TRUE), by=Interval_f]
 names(averageset)[2] <- 'AverageSteps'
 
@@ -65,7 +65,7 @@ The 5-minute interval that on average contains the maximum number of steps: **`r
 #### Missing Values in Dataset
 We may determine the total number of missing values by counting the number of rows in the 'totalset' table that sum to NA for total number of steps.
 
-```{r number_of_missing_values}
+```{r number_of_missing_values, echo=TRUE}
 # Figure out and report the total number of rows with NAs. 
 naset <- totalset[is.na(TotalSteps==TRUE)]
 
@@ -85,7 +85,7 @@ This conceptually takes four steps:
 3. We merge the two tables to create an ImputedValues dataset.  
 4. We merge the ImputedValues dataset with the main dataset.  
 
-```{r impute_missing_values}
+```{r impute_missing_values, echo=TRUE}
 datawide <- dcast.data.table(dataset, date ~ Interval_f, value.var = 'steps')
 
 # Figure out the weekday number of each date.
@@ -161,7 +161,7 @@ The method used to impute missing data raised both the mean and median of the da
 
 We're going to graph weekday vs weekend activity to show their differences. We must first determine which dates in the dataset are weekdays, and which are weekends. We're avoiding the weekdays function mentioned in the course assignment because it returns character string, but it's easier to use numbers to classify weekdays / weekends.
 
-```{r Weekdays_vs_Weekends}
+```{r Weekdays_vs_Weekends, echo=TRUE}
 # Determine the average number of steps per interval by day number.
 # Recalculate the day number of each date, 0 to 6. 0 is Sunday, 6 is Saturday.
 ImputedDatawide[,day := format.Date(date, format='%w')]

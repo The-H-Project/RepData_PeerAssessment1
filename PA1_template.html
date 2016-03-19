@@ -123,7 +123,7 @@ $(document).ready(function () {
 3. create a continuous date/time series with the date and time data (<strong>Interval_dt</strong>)</p>
 <pre class="r"><code>library(data.table)
 library(lattice)
-dataset &lt;- data.table(fread('activity.csv', na.strings='NA'))
+dataset &lt;- fread('activity.csv', na.strings='NA')
 dataset[,Interval_f := sprintf(&quot;%04d&quot;, as.numeric(interval))]
 dataset[,date := as.Date(date, format='%Y-%m-%d')] 
 dataset[,Interval_dt := as.POSIXct(paste(date,Interval_f), format='%Y-%m-%d %H%M')]  </code></pre>

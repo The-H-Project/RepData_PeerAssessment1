@@ -15,7 +15,7 @@ data.table is used to load the activity.csv dataset and:
 ```r
 library(data.table)
 library(lattice)
-dataset <- data.table(fread('activity.csv', na.strings='NA'))
+dataset <- fread('activity.csv', na.strings='NA')
 dataset[,Interval_f := sprintf("%04d", as.numeric(interval))]
 dataset[,date := as.Date(date, format='%Y-%m-%d')] 
 dataset[,Interval_dt := as.POSIXct(paste(date,Interval_f), format='%Y-%m-%d %H%M')]  
